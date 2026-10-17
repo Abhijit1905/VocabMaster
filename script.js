@@ -126,19 +126,7 @@ function applyTheme(dark) {
 /* ==========================================================================
    BUILT-IN SAMPLE HIGH-YIELD WORDS
    ========================================================================== */
-const DEFAULT_SAMPLE_WORDS = [
-  { id: 'w1', word: 'Aberration', meaning: 'A departure from what is normal, usual, or expected, typically unwelcome', sentence: 'The sudden cold snap in late spring was an aberration for the region.' },
-  { id: 'w2', word: 'Alacrity', meaning: 'Brisk and cheerful readiness to do something', sentence: 'She accepted the challenge with surprising alacrity and confidence.' },
-  { id: 'w3', word: 'Anachronistic', meaning: 'Belonging to a period other than that in which it exists', sentence: 'Using a typewriter in a modern office seems entirely anachronistic.' },
-  { id: 'w4', word: 'Bellicose', meaning: 'Demonstrating aggression and willingness to fight', sentence: 'His bellicose attitude made diplomatic negotiations nearly impossible.' },
-  { id: 'w5', word: 'Cacophony', meaning: 'A harsh, discordant mixture of sounds', sentence: 'A cacophony of car horns and construction noise echoed through the street.' },
-  { id: 'w6', word: 'Capricious', meaning: 'Given to sudden and unaccountable changes of mood or behavior', sentence: 'The judge warned that capricious rulings would undermine the court.' },
-  { id: 'w7', word: 'Convivial', meaning: 'Friendly, lively, and enjoyable atmosphere or company', sentence: 'The holiday feast was filled with laughter and a convivial spirit.' },
-  { id: 'w8', word: 'Deleterious', meaning: 'Causing harm or damage in an unexpected way', sentence: 'Prolonged sleep deprivation has deleterious effects on mental health.' },
-  { id: 'w9', word: 'Ephemeral', meaning: 'Lasting for a very short time; fleeting', sentence: 'Morning dew on the petals provides only ephemeral beauty.' },
-  { id: 'w10', word: 'Esoteric', meaning: 'Intended for or understood by only a small group with specialized knowledge', sentence: 'Quantum mechanics is often seen as an esoteric academic subject.' },
-  { id: 'w11', word: 'Fastidious', meaning: 'Very attentive to and concerned about accuracy and detail', sentence: 'He was fastidious about keeping his desk meticulously organized.' }
-];
+const DEFAULT_SAMPLE_WORDS = [];
 
 /* ==========================================================================
    INITIALIZATION
