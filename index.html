@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VocabMaster - Testbook-Style Exam Portal</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (xlsx library) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81'
+            },
+            exam: {
+              nav: '#0f172a',
+              card: '#ffffff',
+              green: '#10b981',
+              red: '#ef4444',
+              accent: '#0284c7'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen flex flex-col justify-between transition-colors duration-200">
+
+  <!-- Top Navigation Bar (Testbook Style) -->
+  <header class="bg-slate-900 dark:bg-slate-900 text-white shadow-md sticky top-0 z-50 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateTo('dashboard')">
+        <div class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-xl shadow-md">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            VocabMaster <span class="text-xs bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 px-2 py-0.5 rounded uppercase font-semibold">Mock Portal</span>
+          </h1>
+          <p class="text-[11px] text-slate-400">Competitive Exam Word Bank & Analytics</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Firebase Sync Indicator -->
+        <div id="firebase-sync-badge" class="hidden items-center px-2 py-1 rounded bg-slate-800 border border-slate-700 text-[10px] sm:text-xs font-semibold text-slate-300 gap-1.5">
+          <span id="firebase-sync-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span id="firebase-sync-text" class="hidden sm:inline">Synced</span>
+        </div>
+
+        <!-- Dark Mode Toggle Button -->
+        <button onclick="toggleDarkMode()" id="theme-toggle-btn" title="Toggle Theme" class="p-2 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-all border border-slate-700">
+          <i id="theme-icon" class="fa-solid fa-moon"></i>
+        </button>
+
+        <!-- Sync / Backup Button -->
+        <button onclick="openSyncModal()" title="Cross-Browser Sync" class="px-3 py-1.5 text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition-all flex items-center gap-2">
+          <i class="fa-solid fa-arrows-rotate text-sky-400"></i>
+          <span class="hidden sm:inline">Sync / Backup</span>
+        </button>
+
+        <!-- Bank Upload Button -->
+        <button onclick="openUploadModal()" class="px-3 py-1.5 text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition-all flex items-center gap-2">
+          <i class="fa-solid fa-file-excel text-emerald-400"></i>
+          <span class="hidden sm:inline">Upload Bank</span>
+          <span class="sm:hidden">Bank</span>
+        </button>
+
+        <!-- Saved Vault Button -->
+        <button onclick="navigateTo('saved-vault')" class="px-3 py-1.5 text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-2 font-medium">
+          <i class="fa-solid fa-bookmark text-amber-300"></i>
+          <span>Saved (<span id="nav-saved-count">0</span>)</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- VIEW 1: DASHBOARD -->
+    <section id="view-dashboard" class="space-y-6">
+      
+      <!-- Welcome & Status Banner -->
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border border-slate-800">
+        <div class="relative z-10 space-y-2 max-w-xl">
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Firebase Auto-Sync Active
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Daily Vocab Mock Practice</h2>
+          <p class="text-slate-300 text-sm leading-relaxed">
+            Words are pulled sequentially without repeating previous questions. All test history and flagged mistake entries are stored securely in the cloud and your browser.
+          </p>
+        </div>
+        <div class="relative z-10 flex flex-wrap gap-3">
+          <button onclick="openConfigModal('fresh')" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 text-sm sm:text-base">
+            <i class="fa-solid fa-play"></i> Start Fresh Mock Quiz
+          </button>
+          <button onclick="openConfigModal('saved')" id="btn-quiz-saved" class="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 font-semibold rounded-xl transition-all flex items-center gap-2 text-sm sm:text-base">
+            <i class="fa-solid fa-star text-amber-400"></i> Practice Saved Words
+          </button>
+        </div>
+        <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none translate-x-12 translate-y-6 text-indigo-400 text-9xl">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+      </div>
+
+      <!-- Key Performance Indicators (Cards) -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- Total Bank -->
+        <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-medium uppercase tracking-wider">Word Bank</span>
+            <i class="fa-solid fa-book-bookmark text-indigo-500"></i>
+          </div>
+          <div class="text-2xl font-bold text-slate-900 dark:text-white" id="stat-total-words">0</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Uploaded in system</div>
+        </div>
+
+        <!-- Remaining Unseen -->
+        <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-medium uppercase tracking-wider">Unseen</span>
+            <i class="fa-solid fa-hourglass-half text-amber-500"></i>
+          </div>
+          <div class="text-2xl font-bold text-amber-600 dark:text-amber-400" id="stat-unseen-words">0</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Available for next test</div>
+        </div>
+
+        <!-- Mastered / Seen -->
+        <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-medium uppercase tracking-wider">Attempted</span>
+            <i class="fa-solid fa-circle-check text-emerald-500"></i>
+          </div>
+          <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400" id="stat-seen-words">0</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Non-repeating pool</div>
+        </div>
+
+        <!-- Saved / Flagged -->
+        <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-medium uppercase tracking-wider">Saved Words</span>
+            <i class="fa-solid fa-star text-amber-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-slate-900 dark:text-white" id="stat-saved-words">0</div>
+          <div class="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium cursor-pointer mt-1 hover:underline" onclick="navigateTo('saved-vault')">View vault &rarr;</div>
+        </div>
+
+        <!-- Total Quizzes -->
+        <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-medium uppercase tracking-wider">Tests Taken</span>
+            <i class="fa-solid fa-file-lines text-sky-500"></i>
+          </div>
+          <div class="text-2xl font-bold text-slate-900 dark:text-white" id="stat-quizzes-taken">0</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Completed sessions</div>
+        </div>
+
+        <!-- Average Accuracy -->
+        <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-medium uppercase tracking-wider">Avg Accuracy</span>
+            <i class="fa-solid fa-chart-pie text-violet-500"></i>
+          </div>
+          <div class="text-2xl font-bold text-violet-600 dark:text-violet-400" id="stat-avg-accuracy">0%</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Overall performance</div>
+        </div>
+      </div>
+
+      <!-- Main Action Split: Recent History + Quick Controls -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left: Previous Quiz History (Testbook-style cards) -->
+        <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 space-y-4 transition-colors">
+          <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-indigo-600 dark:text-indigo-400"></i> Previous Mock History
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Detailed test performance & review records</p>
+            </div>
+            <button onclick="clearHistory()" class="text-xs text-slate-400 dark:text-slate-500 hover:text-red-500 font-medium transition-colors">
+              Clear Logs
+            </button>
+          </div>
+
+          <!-- History Table / Empty State -->
+          <div id="history-container" class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+            <!-- Dynamically populated or empty -->
+          </div>
+        </div>
+
+        <!-- Right: Word Bank Controls & Excel Management -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 space-y-5 transition-colors">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-indigo-600 dark:text-indigo-400"></i> Word Bank Settings
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Control cycle & non-repeat mechanics</p>
+          </div>
+
+          <!-- Bank Progress Ring/Bar -->
+          <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+            <div class="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span>Overall Bank Coverage</span>
+              <span id="bank-progress-percent">0%</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+              <div id="bank-progress-bar" class="bg-indigo-600 dark:bg-indigo-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-normal" id="bank-progress-hint">
+              Once all words are attempted, you can reset the seen pool to cycle through them again.
+            </p>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="space-y-2.5">
+            <button onclick="resetSeenWords()" class="w-full py-2.5 px-4 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-lg transition-all flex items-center justify-center gap-2">
+              <i class="fa-solid fa-rotate-right text-indigo-600 dark:text-indigo-400"></i> Reset "Seen" Pool (Start Over)
+            </button>
+            <button onclick="exportSavedToExcel()" class="w-full py-2.5 px-4 text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-300 dark:border-emerald-800 rounded-lg transition-all flex items-center justify-center gap-2">
+              <i class="fa-solid fa-file-arrow-down text-emerald-600 dark:text-emerald-400"></i> Download Saved.xlsx File
+            </button>
+            <button onclick="openSyncModal()" class="w-full py-2.5 px-4 text-xs font-semibold text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 border border-sky-300 dark:border-sky-800 rounded-lg transition-all flex items-center justify-center gap-2">
+              <i class="fa-solid fa-cloud-arrow-down text-sky-600 dark:text-sky-400"></i> Manual Backup / Local Sync Options
+            </button>
+            <button onclick="loadSampleData()" class="w-full py-2.5 px-4 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all flex items-center justify-center gap-2">
+              <i class="fa-solid fa-vial text-slate-500 dark:text-slate-400"></i> Reload Sample 30 High-Yield Words
+            </button>
+          </div>
+
+          <!-- File Upload Info Card -->
+          <div class="text-xs text-slate-500 dark:text-slate-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg p-3 space-y-1">
+            <div class="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-info"></i> Excel Columns Recognized:
+            </div>
+            <p class="text-slate-600 dark:text-slate-400">
+              Columns with names like <b>Word</b>, <b>Meaning / Definition</b>, and <b>Sentence / Example</b> are automatically picked up.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: QUIZ EXAMINATION ROOM (Testbook Mock Vibe) -->
+    <section id="view-quiz" class="hidden space-y-4">
+      
+      <!-- Top Exam Bar (Status, Timer, Controls) -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-wrap items-center justify-between gap-4 transition-colors">
+        <div class="flex items-center gap-3">
+          <span class="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold rounded-lg text-sm" id="quiz-badge-type">
+            Daily Mock Test
+          </span>
+          <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Question <span id="quiz-current-num" class="text-indigo-600 dark:text-indigo-400 font-extrabold text-lg">1</span> of <span id="quiz-total-num">20</span>
+          </div>
+        </div>
+
+        <!-- Center Timer -->
+        <div class="flex items-center gap-2 bg-slate-900 dark:bg-slate-800 text-white px-4 py-1.5 rounded-full font-mono text-sm tracking-wider shadow-inner border border-slate-700">
+          <i class="fa-regular fa-clock text-amber-400"></i>
+          <span id="quiz-timer">00:00</span>
+        </div>
+
+        <!-- End Test Button -->
+        <div class="flex items-center gap-2">
+          <button onclick="toggleBookmarkCurrentQuestion()" id="btn-quiz-bookmark" class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-amber-500 hover:border-amber-400 transition-all flex items-center gap-1.5">
+            <i class="fa-regular fa-bookmark"></i> <span>Save Question</span>
+          </button>
+          <button onclick="confirmSubmitQuiz()" class="px-4 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-all flex items-center gap-1.5">
+            <i class="fa-solid fa-flag-checkered"></i> Submit Test
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Question Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <!-- Left: Question Paper & Options (3 Cols) -->
+        <div class="lg:col-span-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8 flex flex-col justify-between min-h-[480px] transition-colors">
+          
+          <div class="space-y-6">
+            <!-- Question Mode Hint -->
+            <div class="flex items-center justify-between">
+              <span class="text-xs uppercase font-bold tracking-wider px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" id="quiz-mode-pill">
+                Identify the correct word
+              </span>
+              <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">Single Choice (+1.0 Mark)</span>
+            </div>
+
+            <!-- Question Prompt Box -->
+            <div class="p-6 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/70 rounded-xl space-y-3">
+              <div class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400" id="quiz-prompt-label">Target Meaning</div>
+              <h3 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-snug" id="quiz-prompt-text">
+                --
+              </h3>
+              <!-- Optional Sentence context -->
+              <div id="quiz-prompt-sentence-box" class="pt-2 text-sm italic text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700/60 hidden">
+                <span class="font-semibold text-slate-700 dark:text-slate-300 not-italic">Example Sentence: </span>
+                <span id="quiz-prompt-sentence">--</span>
+              </div>
+            </div>
+
+            <!-- Options List (A, B, C, D) -->
+            <div class="space-y-3" id="quiz-options-container">
+              <!-- Dynamically populated 4 options -->
+            </div>
+          </div>
+
+          <!-- Bottom Navigation inside Quiz -->
+          <div class="pt-6 mt-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <button onclick="clearCurrentSelection()" class="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
+              Clear Selection
+            </button>
+            <div class="flex gap-2">
+              <button onclick="navigateQuizQuestion(-1)" id="btn-quiz-prev" class="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all flex items-center gap-1.5">
+                <i class="fa-solid fa-chevron-left"></i> Previous
+              </button>
+              <button onclick="navigateQuizQuestion(1)" id="btn-quiz-next" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow transition-all flex items-center gap-1.5">
+                Next <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Question Palette Grid (Testbook style numbers) -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4 flex flex-col justify-between transition-colors">
+          <div>
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
+              <i class="fa-solid fa-border-all text-indigo-600 dark:text-indigo-400"></i> Question Palette
+            </h4>
+
+            <!-- Legend -->
+            <div class="grid grid-cols-2 gap-2 text-[11px] py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded bg-emerald-500"></span> Attempted
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600"></span> Unattempted
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded bg-amber-400"></span> Saved / Starred
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded ring-2 ring-indigo-600 bg-white dark:bg-slate-800"></span> Current
+              </div>
+            </div>
+
+            <!-- Number Badges Grid -->
+            <div class="grid grid-cols-5 gap-2 mt-4 max-h-72 overflow-y-auto custom-scrollbar p-1" id="quiz-palette-grid">
+              <!-- Dynamically populated badges -->
+            </div>
+          </div>
+
+          <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60 text-center">
+            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Attempted: </span>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200" id="palette-attempted-counter">0 / 20</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- VIEW 3: COMPREHENSIVE SUMMARY / EXAM RESULT -->
+    <section id="view-summary" class="hidden space-y-6">
+      
+      <!-- Scorecard Header -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-6 transition-colors">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-6 gap-4">
+          <div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mb-2 border border-indigo-200/50 dark:border-indigo-800/50">
+              <i class="fa-solid fa-clipboard-check"></i> Performance Analysis
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">Quiz Completed!</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-1" id="summary-meta-date">Date: Today | Category: Word Mastery</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="exportSavedToExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2">
+              <i class="fa-solid fa-file-excel"></i> Export All Saved.xlsx
+            </button>
+            <button onclick="navigateTo('dashboard')" class="px-4 py-2 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+              <i class="fa-solid fa-house"></i> Dashboard
+            </button>
+          </div>
+        </div>
+
+        <!-- Metric Badges Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
+            <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Final Score</span>
+            <div class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1" id="summary-score-text">0/0</div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="summary-marks-net">+0 Marks</div>
+          </div>
+          <div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/50">
+            <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Accuracy Rate</span>
+            <div class="text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-1" id="summary-accuracy-text">0%</div>
+            <div class="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5" id="summary-correct-count">0 Correct</div>
+          </div>
+          <div class="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200/80 dark:border-red-800/50">
+            <span class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Wrong Answers</span>
+            <div class="text-3xl font-extrabold text-red-700 dark:text-red-300 mt-1" id="summary-wrong-count">0</div>
+            <div class="text-[11px] text-red-600 dark:text-red-400 mt-0.5">Recommended to Save</div>
+          </div>
+          <div class="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/50">
+            <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Time Taken</span>
+            <div class="text-3xl font-extrabold text-indigo-900 dark:text-indigo-200 mt-1" id="summary-time-text">00:00</div>
+            <div class="text-[11px] text-indigo-600 dark:text-indigo-400 mt-0.5" id="summary-speed-text">Avg: 0s/question</div>
+          </div>
+        </div>
+
+        <!-- Filter Buttons for Review List -->
+        <div class="flex items-center justify-between pt-2">
+          <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-600 dark:text-indigo-400"></i> Detailed Question Solutions
+          </h3>
+          <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-1 bg-slate-50 dark:bg-slate-800 text-xs">
+            <button onclick="filterSummaryReview('all')" id="filter-btn-all" class="px-3 py-1 font-semibold rounded bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white">All (<span id="count-filter-all">0</span>)</button>
+            <button onclick="filterSummaryReview('wrong')" id="filter-btn-wrong" class="px-3 py-1 font-semibold rounded text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Wrong Only (<span id="count-filter-wrong">0</span>)</button>
+            <button onclick="filterSummaryReview('saved')" id="filter-btn-saved" class="px-3 py-1 font-semibold rounded text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Saved (<span id="count-filter-saved">0</span>)</button>
+          </div>
+        </div>
+
+        <!-- Question Cards List -->
+        <div class="space-y-4" id="summary-review-list">
+          <!-- Dynamically populated solution cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: SAVED WORDS VAULT (Browse, search, export) -->
+    <section id="view-saved-vault" class="hidden space-y-6">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-6 transition-colors">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-5 gap-4">
+          <div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 mb-2 border border-amber-200/60 dark:border-amber-800/60">
+              <i class="fa-solid fa-star"></i> Review Bank
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">Saved Words & Mistakes Vault</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">All words flagged by you or saved during quizzes. Stored securely and synced via Firebase.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="exportSavedToExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2">
+              <i class="fa-solid fa-download"></i> Download saved.xlsx
+            </button>
+            <button onclick="openConfigModal('saved')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2">
+              <i class="fa-solid fa-play"></i> Quiz on Saved
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Bar and Count -->
+        <div class="flex items-center justify-between gap-4">
+          <div class="relative w-full max-w-sm">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" id="vault-search-input" oninput="renderSavedVault()" placeholder="Search word, meaning..." class="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          </div>
+          <button onclick="clearSavedVault()" class="text-xs text-red-500 hover:underline font-medium">Clear All Saved</button>
+        </div>
+
+        <!-- Saved Words Table -->
+        <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+              <tr>
+                <th class="py-3 px-4">#</th>
+                <th class="py-3 px-4">Word</th>
+                <th class="py-3 px-4">Meaning / Definition</th>
+                <th class="py-3 px-4">Example Sentence</th>
+                <th class="py-3 px-4 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="saved-vault-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: CROSS-BROWSER SYNC / BACKUP -->
+  <div id="modal-sync" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-arrows-rotate text-sky-500"></i> Manual Sync & Backup Options
+        </h3>
+        <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+        <p>
+          <span class="text-emerald-500 font-bold">Good News:</span> Your progress is now automatically synced in the background using Firebase! You don't need to manually transfer files between Chrome and Edge anymore.
+        </p>
+        <p>
+          However, if you still want a hard copy backup of your words, you can use the legacy JSON tools below.
+        </p>
+
+        <!-- Option 1: Export -->
+        <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+          <div class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-file-arrow-down text-indigo-500"></i> Export Current State
+          </div>
+          <button onclick="downloadJsonBackup()" class="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-download"></i> Download Progress Backup (.json)
+          </button>
+        </div>
+
+        <!-- Option 2: Import -->
+        <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+          <div class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-file-arrow-up text-amber-500"></i> Restore from Manual Backup
+          </div>
+          <input type="file" id="sync-json-input" accept=".json" class="hidden" onchange="handleRestoreJson(event)">
+          <button onclick="document.getElementById('sync-json-input').click()" class="w-full py-2 px-3 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-upload"></i> Upload Backup File (.json)
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+        <button onclick="closeSyncModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 1: EXCEL UPLOAD DIALOG -->
+  <div id="modal-upload" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-file-excel text-emerald-600 text-lg"></i> Upload Vocabulary Excel Sheet
+        </h3>
+        <button onclick="closeUploadModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        Upload your master vocabulary file (`.xlsx`, `.xls`, or `.csv`). You only need to do this once—it stays cached in your browser.
+      </p>
+
+      <!-- Dropzone -->
+      <div id="dropzone" class="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-xl p-8 text-center cursor-pointer transition-all bg-slate-50/50 dark:bg-slate-800/40 hover:bg-indigo-50/30 dark:hover:bg-slate-800 flex flex-col items-center justify-center">
+        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden">
+        <i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-500 mb-2"></i>
+        <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Click to select file or drag & drop here</p>
+        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Supports standard 800+ words Excel spreadsheets</p>
+      </div>
+
+      <!-- Preview stats after file pick -->
+      <div id="upload-status" class="hidden text-xs p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 font-medium border border-indigo-200/50 dark:border-indigo-800/50"></div>
+
+      <!-- Action buttons -->
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <button onclick="closeUploadModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
+        <button id="btn-confirm-upload" disabled onclick="processUploadedFile()" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 disabled:opacity-50 hover:bg-indigo-700 rounded-lg shadow">
+          Import & Save to Bank
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: QUIZ CONFIGURATION -->
+  <div id="modal-quiz-config" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2" id="config-modal-title">
+          <i class="fa-solid fa-play text-indigo-600 dark:text-indigo-400"></i> Configure Daily Mock Quiz
+        </h3>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">Number of Questions</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button type="button" onclick="selectQuizSize(10)" class="quiz-size-btn py-2 text-xs font-bold border rounded-lg border-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-center" data-size="10">10 Qs</button>
+            <button type="button" onclick="selectQuizSize(20)" class="quiz-size-btn py-2 text-xs font-bold border rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-center" data-size="20">20 Qs</button>
+            <button type="button" onclick="selectQuizSize(30)" class="quiz-size-btn py-2 text-xs font-bold border rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-center" data-size="30">30 Qs</button>
+            <button type="button" onclick="selectQuizSize(50)" class="quiz-size-btn py-2 text-xs font-bold border rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-center" data-size="50">50 Qs</button>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+          <div class="flex justify-between font-medium">
+            <span>Pool Available:</span>
+            <span class="font-bold text-slate-900 dark:text-white" id="config-available-pool">0 words</span>
+          </div>
+          <div class="flex justify-between font-medium">
+            <span>Question Styles:</span>
+            <span class="font-bold text-indigo-600 dark:text-indigo-400">50% Meaning / 50% Word</span>
+          </div>
+          <div class="flex justify-between font-medium">
+            <span>Repetition:</span>
+            <span class="font-bold text-emerald-600 dark:text-emerald-400">Strictly Non-Repeating</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <button onclick="closeConfigModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
+        <button onclick="startConfiguredQuiz()" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow flex items-center gap-2">
+          Start Quiz Now <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: CONFIRM SUBMIT MODAL -->
+  <div id="modal-submit-confirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-center border border-slate-100 dark:border-slate-800">
+      <div class="w-12 h-12 bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h3 class="text-base font-bold text-slate-900 dark:text-white">Submit Mock Test?</h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed" id="submit-confirm-summary-text">
+        You have attempted 0 out of 20 questions. Are you sure you want to finish the exam?
+      </p>
+      <div class="flex gap-2 justify-center pt-2">
+        <button onclick="closeSubmitConfirmModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg">Keep Practicing</button>
+        <button onclick="finalizeQuizSubmission()" class="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow">Yes, Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Info -->
+  <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-4 px-4 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <p>VocabMaster &bull; Browser Storage &bull; Designed for Competitive Exams</p>
+      <p class="text-slate-400 dark:text-slate-500">Firebase Synced &bull; Switch between Dark/Light mode</p>
+    </div>
+  </footer>
+
+  <!-- JAVASCRIPT APPLICATION CORE (Type=Module for Firebase) -->
+  <script type="module" src="script.js"></script>
+</body>
+</html>
